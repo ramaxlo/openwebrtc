@@ -1818,7 +1818,7 @@ static void handle_new_send_payload(OwrTransportAgent *transport_agent, OwrMedia
         parser = _owr_payload_create_parser(payload);
         payloader = _owr_payload_create_payload_packetizer(payload);
 
-        encoder_sink_pad = gst_element_get_static_pad(encoder, "sink");
+        encoder_sink_pad = gst_element_get_static_pad(encoder, "audio_0");
         g_signal_connect(encoder_sink_pad, "notify::caps", G_CALLBACK(on_caps), OWR_SESSION(media_session));
         gst_object_unref(encoder_sink_pad);
 
