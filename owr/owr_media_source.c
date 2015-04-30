@@ -127,6 +127,8 @@ static void owr_media_source_get_property(GObject *object, guint property_id,
 static GstElement *owr_media_source_request_source_default(OwrMediaSource *media_source, GstCaps *caps);
 static void owr_media_source_release_source_default(OwrMediaSource *media_source, GstElement *source);
 
+extern gboolean fix_video_caps_framerate(GstCapsFeatures *f, GstStructure *s, gpointer user_data);
+
 static void owr_media_source_finalize(GObject *object)
 {
     OwrMediaSource *source = OWR_MEDIA_SOURCE(object);
@@ -327,7 +329,7 @@ static GstElement *owr_media_source_request_source_default(OwrMediaSource *media
         {
         GstElement *videoscale, *videoconvert;
         GstPad *tee_sinkpad;
-        GstCaps *src_caps;
+        GstCaps *src_caps, *fix_framerate_caps;
 
         CREATE_ELEMENT_WITH_ID(source, "interappsrc", "source", source_id);
         CREATE_ELEMENT_WITH_ID(sink, "interappsink", "sink", source_id);
@@ -336,12 +338,20 @@ static GstElement *owr_media_source_request_source_default(OwrMediaSource *media
         gst_pad_add_probe(srcpad, GST_PAD_PROBE_TYPE_BUFFER, drop_gap_buffers, NULL, NULL);
         gst_object_unref(srcpad);
 
-        g_object_set(capsfilter, "caps", caps, NULL);
+        // For each raw video structure, adds a variant with framerate unset
+        fix_framerate_caps = gst_caps_new_empty();
+#if GST_CHECK_VERSION(1, 5, 0)
+        gst_caps_foreach(caps, fix_video_caps_framerate, fix_framerate_caps);
+#else
+        _owr_gst_caps_foreach(caps, fix_video_caps_framerate, fix_framerate_caps);
+#endif
+
+        g_object_set(capsfilter, "caps", fix_framerate_caps, NULL);
 
         /* Let's see if we have specific caps from the source, and whether
          * they're compatible */
         tee_sinkpad = gst_element_get_static_pad(tee, "sink");
-        src_caps = gst_pad_peer_query_caps(tee_sinkpad, caps);
+        src_caps = gst_pad_peer_query_caps(tee_sinkpad, fix_framerate_caps);
 
         if (!gst_caps_is_empty(src_caps)) {
             /* We have the caps we want, don't bother with conversion */
@@ -365,6 +375,7 @@ static GstElement *owr_media_source_request_source_default(OwrMediaSource *media
 
         gst_caps_unref(src_caps);
         gst_object_unref(tee_sinkpad);
+        gst_caps_unref(fix_framerate_caps);
 
         break;
         }

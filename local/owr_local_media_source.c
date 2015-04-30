@@ -300,7 +300,7 @@ drop_reconfigure_event(GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
 }
 
 /* For each raw video structure, adds a variant with framerate unset */
-static gboolean
+gboolean
 fix_video_caps_framerate(GstCapsFeatures *f, GstStructure *s, gpointer user_data)
 {
     GstCaps *ret = GST_CAPS(user_data);
