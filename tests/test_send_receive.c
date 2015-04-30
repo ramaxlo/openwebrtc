@@ -57,6 +57,7 @@ static OwrMediaSource *remote_audio_source = NULL;
 static OwrMediaSource *remote_video_source = NULL;
 
 static gboolean disable_video = FALSE, disable_audio = FALSE;
+static guint video_width = 800, video_height = 600;
 
 static GOptionEntry entries[] = {
     { "disable-video", 0, 0, G_OPTION_ARG_NONE, &disable_video, "Disable video", NULL },
@@ -132,7 +133,7 @@ static void got_sources(GList *sources, gpointer user_data)
             have_video = TRUE;
 
             payload = owr_video_payload_new(OWR_CODEC_TYPE_H264, 103, 90000, TRUE, FALSE);
-            g_object_set(payload, "width", 1280, "height", 720, "framerate", 30.0, NULL);
+            g_object_set(payload, "width", video_width, "height", video_height, "framerate", 30.0, NULL);
             g_object_set(payload, "rtx-payload-type", 123, NULL);
 
             owr_media_session_set_send_payload(send_session_video, payload);
@@ -145,7 +146,7 @@ static void got_sources(GList *sources, gpointer user_data)
 
             renderer = owr_video_renderer_new(NULL);
             g_assert(renderer);
-            g_object_set(renderer, "width", 1280, "height", 720, "max-framerate", 30.0, NULL);
+            g_object_set(renderer, "width", video_width, "height", video_height, "max-framerate", 30.0, NULL);
             owr_media_renderer_set_source(OWR_MEDIA_RENDERER(renderer), source);
             video_renderer = OWR_MEDIA_RENDERER(renderer);
             video_source = g_object_ref(source);
@@ -278,7 +279,7 @@ int main(int argc, char **argv)
     owr_get_capture_sources((!disable_video ? OWR_MEDIA_TYPE_VIDEO : 0) | (!disable_audio ? OWR_MEDIA_TYPE_AUDIO : 0),
         got_sources, NULL);
 
-    g_timeout_add_seconds(10, (GSourceFunc)dump_cb, NULL);
+    g_timeout_add_seconds(20, (GSourceFunc)dump_cb, NULL);
 
     owr_run();
 
