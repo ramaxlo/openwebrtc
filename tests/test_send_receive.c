@@ -59,9 +59,8 @@ static OwrMediaSource *remote_audio_source = NULL;
 static OwrMediaSource *remote_video_source = NULL;
 static OwrBus *bus = NULL;
 
-static gboolean disable_video = FALSE, disable_audio = FALSE;
-static guint video_width = 800, video_height = 600;
 static gboolean disable_video = FALSE, disable_audio = FALSE, print_messages = FALSE;
+static guint video_width = 800, video_height = 600;
 
 static GOptionEntry entries[] = {
     { "disable-video", 0, 0, G_OPTION_ARG_NONE, &disable_video, "Disable video", NULL },
