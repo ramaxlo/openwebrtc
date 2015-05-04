@@ -38,7 +38,6 @@
 
 #include "owr_media_source.h"
 #include "owr_media_source_private.h"
-#include "owr_message_origin_private.h"
 #include "owr_private.h"
 #include "owr_types.h"
 #include "owr_utils.h"
@@ -66,10 +65,7 @@ static GParamSpec *obj_properties[N_PROPERTIES] = {NULL, };
 
 #define OWR_MEDIA_RENDERER_GET_PRIVATE(obj)    (G_TYPE_INSTANCE_GET_PRIVATE((obj), OWR_TYPE_MEDIA_RENDERER, OwrMediaRendererPrivate))
 
-static void owr_message_origin_interface_init(OwrMessageOriginInterface *interface);
-
-G_DEFINE_TYPE_WITH_CODE(OwrMediaRenderer, owr_media_renderer, G_TYPE_OBJECT,
-    G_IMPLEMENT_INTERFACE(OWR_TYPE_MESSAGE_ORIGIN, owr_message_origin_interface_init))
+G_DEFINE_TYPE(OwrMediaRenderer, owr_media_renderer, G_TYPE_OBJECT)
 
 struct _OwrMediaRendererPrivate {
     GMutex media_renderer_lock;
@@ -79,7 +75,6 @@ struct _OwrMediaRendererPrivate {
 
     GstElement *pipeline;
     GstElement *src, *sink;
-    OwrMessageOriginBusSet *message_origin_bus_set;
 };
 
 static void owr_media_renderer_set_property(GObject *object, guint property_id,
@@ -91,9 +86,6 @@ static void owr_media_renderer_finalize(GObject *object)
 {
     OwrMediaRenderer *renderer = OWR_MEDIA_RENDERER(object);
     OwrMediaRendererPrivate *priv = renderer->priv;
-
-    owr_message_origin_bus_set_free(priv->message_origin_bus_set);
-    priv->message_origin_bus_set = NULL;
 
     if (priv->pipeline) {
         gst_element_set_state(priv->pipeline, GST_STATE_NULL);
@@ -135,16 +127,6 @@ static void owr_media_renderer_class_init(OwrMediaRendererClass *klass)
 
     gobject_class->finalize = owr_media_renderer_finalize;
     g_object_class_install_properties(gobject_class, N_PROPERTIES, obj_properties);
-}
-
-static gpointer owr_media_renderer_get_bus_set(OwrMessageOrigin *origin)
-{
-    return OWR_MEDIA_RENDERER(origin)->priv->message_origin_bus_set;
-}
-
-static void owr_message_origin_interface_init(OwrMessageOriginInterface *interface)
-{
-    interface->get_bus_set = owr_media_renderer_get_bus_set;
 }
 
 /* FIXME: Copy from owr/orw.c without any error handling whatsoever */
@@ -220,8 +202,6 @@ static void owr_media_renderer_init(OwrMediaRenderer *renderer)
     priv->media_type = DEFAULT_MEDIA_TYPE;
     priv->source = DEFAULT_SOURCE;
     priv->disabled = DEFAULT_DISABLED;
-
-    priv->message_origin_bus_set = owr_message_origin_bus_set_new();
 
     bin_name = g_strdup_printf("media-renderer-%u", g_atomic_int_add(&unique_bin_id, 1));
     priv->pipeline = gst_pipeline_new(bin_name);
@@ -348,7 +328,6 @@ static void maybe_start_renderer(OwrMediaRenderer *renderer)
         return;
     }
     gst_element_set_state(priv->pipeline, GST_STATE_PLAYING);
-    OWR_POST_EVENT(renderer, RENDERER_STARTED, NULL);
 }
 
 static gboolean set_source(GHashTable *args)
@@ -386,7 +365,6 @@ static gboolean set_source(GHashTable *args)
     if (!source) {
         /* Shut down the pipeline if we have no source */
         gst_element_set_state(priv->pipeline, GST_STATE_NULL);
-        OWR_POST_EVENT(renderer, RENDERER_STOPPED, NULL);
         g_mutex_unlock(&priv->media_renderer_lock);
         goto end;
     }
@@ -419,7 +397,7 @@ void owr_media_renderer_set_source(OwrMediaRenderer *renderer, OwrMediaSource *s
     g_return_if_fail(OWR_IS_MEDIA_RENDERER(renderer));
     g_return_if_fail(!source || OWR_IS_MEDIA_SOURCE(source));
 
-    args = _owr_create_schedule_table(OWR_MESSAGE_ORIGIN(renderer));
+    args = g_hash_table_new(g_str_hash, g_str_equal);
     g_hash_table_insert(args, "renderer", renderer);
     g_hash_table_insert(args, "source", source);
 
