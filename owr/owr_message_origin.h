@@ -1,7 +1,5 @@
 /*
- * Copyright (c) 2014-2015, Ericsson AB. All rights reserved.
- * Copyright (c) 2014, Centricular Ltd
- *     Author: Sebastian Dröge <sebastian@centricular.com>
+ * Copyright (c) 2015, Ericsson AB. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
@@ -25,32 +23,37 @@
  * OF SUCH DAMAGE.
  */
 
-#ifndef __OWR_PRIVATE_H__
-#define __OWR_PRIVATE_H__
+/*/
+\*\ OwrMessageProvider
+/*/
 
-#include "owr_message_origin_private.h"
+#ifndef __OWR_MESSAGE_ORIGIN_H__
+#define __OWR_MESSAGE_ORIGIN_H__
 
-#include <glib.h>
+#include "owr_types.h"
 
-#include <gst/gst.h>
-
-#ifndef __GTK_DOC_IGNORE__
-
-#define OWR_OBJECT_NAME_LENGTH_MAX 100
+#include <glib-object.h>
 
 G_BEGIN_DECLS
 
-/*< private >*/
-gboolean _owr_is_initialized(void);
-GMainContext * _owr_get_main_context(void);
-void _owr_schedule_with_user_data(GSourceFunc func, gpointer user_data);
-void _owr_schedule_with_hash_table(GSourceFunc func, GHashTable *hash_table);
-GHashTable *_owr_create_schedule_table_func(OwrMessageOrigin *origin, const gchar *function_name);
+#define OWR_TYPE_MESSAGE_ORIGIN            (owr_message_origin_get_type())
+#define OWR_MESSAGE_ORIGIN(obj)            (G_TYPE_CHECK_INSTANCE_CAST((obj), OWR_TYPE_MESSAGE_ORIGIN, OwrMessageOrigin))
+#define OWR_IS_MESSAGE_ORIGIN(obj)         (G_TYPE_CHECK_INSTANCE_TYPE((obj), OWR_TYPE_MESSAGE_ORIGIN))
+#define OWR_MESSAGE_ORIGIN_GET_INTERFACE(obj)  (G_TYPE_INSTANCE_GET_INTERFACE((obj), OWR_TYPE_MESSAGE_ORIGIN, OwrMessageOriginInterface))
 
-#define _owr_create_schedule_table(origin) _owr_create_schedule_table_func(origin, __FUNCTION__)
+typedef struct _OwrMessageOrigin        OwrMessageOrigin;
+typedef struct _OwrMessageOriginInterface   OwrMessageOriginInterface;
+
+struct _OwrMessageOriginInterface {
+    GTypeInterface parent;
+
+    /* private virtual functions */
+    gpointer (*get_bus_set)(OwrMessageOrigin *origin);
+};
+
+GType owr_message_origin_get_type(void) G_GNUC_CONST;
 
 G_END_DECLS
 
-#endif /* __GTK_DOC_IGNORE__ */
+#endif /* __OWR_MESSAGE_ORIGIN_H__ */
 
-#endif /* __OWR_PRIVATE_H__ */

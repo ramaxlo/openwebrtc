@@ -1,7 +1,5 @@
 /*
- * Copyright (c) 2014-2015, Ericsson AB. All rights reserved.
- * Copyright (c) 2014, Centricular Ltd
- *     Author: Sebastian Dröge <sebastian@centricular.com>
+ * Copyright (c) 2015, Ericsson AB. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
@@ -25,32 +23,40 @@
  * OF SUCH DAMAGE.
  */
 
-#ifndef __OWR_PRIVATE_H__
-#define __OWR_PRIVATE_H__
+/*/
+\*\ OwrMediaSource private
+/*/
 
-#include "owr_message_origin_private.h"
+#ifndef __OWR_MESSAGE_ORIGIN_PRIVATE_H__
+#define __OWR_MESSAGE_ORIGIN_PRIVATE_H__
 
-#include <glib.h>
+#include "owr_message_origin.h"
 
-#include <gst/gst.h>
+#include "owr_bus.h"
 
 #ifndef __GTK_DOC_IGNORE__
 
-#define OWR_OBJECT_NAME_LENGTH_MAX 100
-
 G_BEGIN_DECLS
 
-/*< private >*/
-gboolean _owr_is_initialized(void);
-GMainContext * _owr_get_main_context(void);
-void _owr_schedule_with_user_data(GSourceFunc func, gpointer user_data);
-void _owr_schedule_with_hash_table(GSourceFunc func, GHashTable *hash_table);
-GHashTable *_owr_create_schedule_table_func(OwrMessageOrigin *origin, const gchar *function_name);
+typedef struct {
+    GHashTable *table;
+    GMutex mutex;
+} OwrMessageOriginBusSet;
 
-#define _owr_create_schedule_table(origin) _owr_create_schedule_table_func(origin, __FUNCTION__)
+OwrMessageOriginBusSet *owr_message_origin_bus_set_new();
+void owr_message_origin_bus_set_free(OwrMessageOriginBusSet *bus_set);
+OwrMessageOriginBusSet *owr_message_origin_get_bus_set(OwrMessageOrigin *origin);
+void owr_message_origin_post_message(OwrMessageOrigin *origin, OwrMessageType type, OwrMessageSubType sub_type, GHashTable *data);
+
+#define OWR_POST_MESSAGE(origin, type, sub_type, data) owr_message_origin_post_message\
+    (OWR_MESSAGE_ORIGIN(origin), G_PASTE(OWR_MESSAGE_TYPE_, type)\
+        , G_PASTE(G_PASTE(OWR_, type), G_PASTE(_TYPE_, sub_type)), data)
+#define OWR_POST_ERROR(origin, sub_type, data) OWR_POST_MESSAGE(origin, ERROR, sub_type, data)
+#define OWR_POST_STATS(origin, sub_type, data) OWR_POST_MESSAGE(origin, STATS, sub_type, data)
+#define OWR_POST_EVENT(origin, sub_type, data) OWR_POST_MESSAGE(origin, EVENT, sub_type, data)
 
 G_END_DECLS
 
 #endif /* __GTK_DOC_IGNORE__ */
 
-#endif /* __OWR_PRIVATE_H__ */
+#endif /* __OWR_MESSAGE_ORIGIN_PRIVATE_H__ */

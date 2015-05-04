@@ -1,7 +1,5 @@
 /*
- * Copyright (c) 2014-2015, Ericsson AB. All rights reserved.
- * Copyright (c) 2014, Centricular Ltd
- *     Author: Sebastian Dröge <sebastian@centricular.com>
+ * Copyright (c) 2015, Ericsson AB. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
@@ -25,32 +23,34 @@
  * OF SUCH DAMAGE.
  */
 
-#ifndef __OWR_PRIVATE_H__
-#define __OWR_PRIVATE_H__
+/*/
+\*\ OwrMediaSource private
+/*/
 
-#include "owr_message_origin_private.h"
+#ifndef __OWR_BUS_PRIVATE_H__
+#define __OWR_BUS_PRIVATE_H__
 
-#include <glib.h>
-
-#include <gst/gst.h>
+#include "owr_bus.h"
 
 #ifndef __GTK_DOC_IGNORE__
 
-#define OWR_OBJECT_NAME_LENGTH_MAX 100
-
 G_BEGIN_DECLS
 
-/*< private >*/
-gboolean _owr_is_initialized(void);
-GMainContext * _owr_get_main_context(void);
-void _owr_schedule_with_user_data(GSourceFunc func, gpointer user_data);
-void _owr_schedule_with_hash_table(GSourceFunc func, GHashTable *hash_table);
-GHashTable *_owr_create_schedule_table_func(OwrMessageOrigin *origin, const gchar *function_name);
+typedef struct {
+    OwrMessageOrigin *origin;
+    OwrMessageType type;
+    OwrMessageSubType sub_type;
+    GHashTable *data;
+    volatile guint ref_count;
+} OwrMessage;
 
-#define _owr_create_schedule_table(origin) _owr_create_schedule_table_func(origin, __FUNCTION__)
+void _owr_bus_post_message(OwrBus *bus, OwrMessage *message);
+OwrMessage *_owr_message_new(OwrMessageOrigin *origin, OwrMessageType type, OwrMessageSubType sub_type, GHashTable *data);
+void _owr_message_ref(OwrMessage *message);
+void _owr_message_unref(OwrMessage *message);
 
 G_END_DECLS
 
 #endif /* __GTK_DOC_IGNORE__ */
 
-#endif /* __OWR_PRIVATE_H__ */
+#endif /* __OWR_BUS_PRIVATE_H__ */

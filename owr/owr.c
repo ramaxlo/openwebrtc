@@ -65,6 +65,7 @@ static GMainLoop *owr_main_loop = NULL;
 GST_DEBUG_CATEGORY(_owraudiopayload_debug);
 GST_DEBUG_CATEGORY(_owraudiorenderer_debug);
 GST_DEBUG_CATEGORY(_owrbridge_debug);
+GST_DEBUG_CATEGORY(_owrbus_debug);
 GST_DEBUG_CATEGORY(_owrcandidate_debug);
 GST_DEBUG_CATEGORY(_owrdatachannel_debug);
 GST_DEBUG_CATEGORY(_owrdatasession_debug);
@@ -217,6 +218,8 @@ void owr_init(GMainContext *main_context)
         "OpenWebRTC Audio Renderer");
     GST_DEBUG_CATEGORY_INIT(_owrbridge_debug, "owrbridge", 0,
         "OpenWebRTC Bridge");
+    GST_DEBUG_CATEGORY_INIT(_owrbus_debug, "owrbus", 0,
+        "OpenWebRTC Bus");
     GST_DEBUG_CATEGORY_INIT(_owrcandidate_debug, "owrcandidate", 0,
         "OpenWebRTC Candidate");
     GST_DEBUG_CATEGORY_INIT(_owrdatachannel_debug, "owrdatachannel", 0,
@@ -402,6 +405,35 @@ void _owr_schedule_with_user_data(GSourceFunc func, gpointer user_data)
     g_source_attach(source, owr_main_context);
 }
 
+static gboolean time_schedule_func(gpointer user_data)
+{
+    GHashTable *table, *data;
+    GValue *value;
+    OwrMessageOrigin *origin;
+    GSourceFunc func;
+    gboolean result;
+
+    table = user_data;
+
+    func = g_hash_table_lookup(table, "__func");
+    origin = g_hash_table_lookup(table, "__origin");
+    data = g_hash_table_lookup(table, "__data");
+
+    value = _owr_value_table_add(data, "call_time", G_TYPE_INT64);
+    g_value_set_int64(value, g_get_monotonic_time());
+
+    result = func(table);
+
+    g_return_val_if_fail(OWR_IS_MESSAGE_ORIGIN(origin), result);
+
+    value = _owr_value_table_add(data, "end_time", G_TYPE_INT64);
+    g_value_set_int64(value, g_get_monotonic_time());
+
+    OWR_POST_STATS(origin, SCHEDULE, data);
+
+    return result;
+}
+
 /**
  * _owr_schedule_with_hash_table:
  * @func:
@@ -410,6 +442,29 @@ void _owr_schedule_with_user_data(GSourceFunc func, gpointer user_data)
  */
 void _owr_schedule_with_hash_table(GSourceFunc func, GHashTable *hash_table)
 {
-    _owr_schedule_with_user_data(func, hash_table);
+    if (g_hash_table_lookup(hash_table, "__data")) {
+        g_hash_table_insert(hash_table, "__func", func);
+        _owr_schedule_with_user_data(time_schedule_func, hash_table);
+    } else
+        _owr_schedule_with_user_data(func, hash_table);
 }
 
+GHashTable *_owr_create_schedule_table_func(OwrMessageOrigin *origin, const gchar *function_name)
+{
+    GHashTable *args, *stats_table;
+    GValue *value;
+
+    stats_table = _owr_value_table_new();
+
+    value = _owr_value_table_add(stats_table, "start_time", G_TYPE_INT64);
+    g_value_set_int64(value, g_get_monotonic_time());
+
+    value = _owr_value_table_add(stats_table, "function_name", G_TYPE_STRING);
+    g_value_set_static_string(value, function_name);
+
+    args = g_hash_table_new(g_str_hash, g_str_equal);
+    g_hash_table_insert(args, "__data", stats_table);
+    g_hash_table_insert(args, "__origin", g_object_ref(origin));
+
+    return args;
+}
