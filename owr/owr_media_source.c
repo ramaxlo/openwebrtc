@@ -275,7 +275,7 @@ static GstElement *owr_media_source_request_source_default(OwrMediaSource *media
 {
     OwrMediaType media_type;
     GstElement *source_pipeline, *tee;
-    GstElement *source_bin, *source = NULL, *queue_pre, *queue_post, *first;
+    GstElement *source_bin, *source = NULL, *queue_pre, *queue_post, *first_element;
     GstElement *capsfilter;
     GstElement *sink, *sink_queue, *sink_bin;
     GstPad *bin_pad = NULL, *srcpad, *sinkpad;
@@ -297,13 +297,12 @@ static GstElement *owr_media_source_request_source_default(OwrMediaSource *media
 
     CREATE_ELEMENT_WITH_ID(capsfilter, "capsfilter", "source-output-capsfilter", source_id);
     CREATE_ELEMENT_WITH_ID(queue_post, "queue", "source-output-queue", source_id);
-
     CREATE_ELEMENT_WITH_ID(sink_queue, "queue", "sink-queue", source_id);
 
     g_object_get(media_source, "media-type", &media_type, NULL);
     switch (media_type) {
     case OWR_MEDIA_TYPE_AUDIO:
-        {
+    {
         GstElement *audioresample, *audioconvert;
 
         CREATE_ELEMENT_WITH_ID(source, "interaudiosrc", "source", source_id);
@@ -321,16 +320,17 @@ static GstElement *owr_media_source_request_source_default(OwrMediaSource *media
         LINK_ELEMENTS(audioresample, capsfilter);
         LINK_ELEMENTS(audioconvert, audioresample);
         LINK_ELEMENTS(queue_pre, audioconvert);
-        first = queue_pre;
+        first_element = queue_pre;
 
         break;
-        }
+    }
     case OWR_MEDIA_TYPE_VIDEO:
-        {
+    {
         GstElement *videoscale, *videoconvert;
         GstPad *tee_sinkpad;
         GstCaps *src_caps, *fix_framerate_caps;
 
+        // Use interappsrc/sink to handle no matter raw or encoded stream.
         CREATE_ELEMENT_WITH_ID(source, "interappsrc", "source", source_id);
         CREATE_ELEMENT_WITH_ID(sink, "interappsink", "sink", source_id);
 
@@ -357,7 +357,7 @@ static GstElement *owr_media_source_request_source_default(OwrMediaSource *media
             /* We have the caps we want, don't bother with conversion */
             gst_bin_add_many(GST_BIN(source_bin), capsfilter, queue_post, NULL);
             LINK_ELEMENTS(capsfilter, queue_post);
-            first = capsfilter;
+            first_element = capsfilter;
         } else {
             /* Cross our fingers and hope conversion works */
             CREATE_ELEMENT_WITH_ID(queue_pre, "queue", "source-queue", source_id);
@@ -370,7 +370,7 @@ static GstElement *owr_media_source_request_source_default(OwrMediaSource *media
             LINK_ELEMENTS(videoconvert, capsfilter);
             LINK_ELEMENTS(videoscale, videoconvert);
             LINK_ELEMENTS(queue_pre, videoscale);
-            first = queue_pre;
+            first_element = queue_pre;
         }
 
         gst_caps_unref(src_caps);
@@ -378,7 +378,7 @@ static GstElement *owr_media_source_request_source_default(OwrMediaSource *media
         gst_caps_unref(fix_framerate_caps);
 
         break;
-        }
+    }
     case OWR_MEDIA_TYPE_UNKNOWN:
     default:
         g_assert_not_reached();
@@ -418,7 +418,7 @@ static GstElement *owr_media_source_request_source_default(OwrMediaSource *media
     gst_element_add_pad(source_bin, bin_pad);
 
     gst_bin_add(GST_BIN(source_bin), source);
-    LINK_ELEMENTS(source, first);
+    LINK_ELEMENTS(source, first_element);
 
 done:
 

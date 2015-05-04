@@ -725,9 +725,9 @@ GstCaps * _owr_payload_create_source_caps(OwrPayload *payload)
             gst_caps_append(caps, tmp);
         }
 
+        // For raw video source caps
         tmp = gst_caps_new_empty_simple("video/x-raw");
         set_video_params(tmp, payload);
-
         gst_caps_append(caps, tmp);
 
         break;

@@ -291,7 +291,7 @@ static void maybe_start_renderer(OwrMediaRenderer *renderer)
     GstPad *sinkpad, *srcpad;
     GstElement *src;
     GstElement *decoder;
-    GstCaps *caps;
+    GstCaps *renderer_caps;
     GstPadLinkReturn pad_link_return;
 
     priv = renderer->priv;
@@ -304,15 +304,14 @@ static void maybe_start_renderer(OwrMediaRenderer *renderer)
 
     g_signal_connect(sinkpad, "notify::caps", G_CALLBACK(on_caps), renderer);
 
-#if 1
-    caps = gst_caps_from_string("video/x-h264, profile = { \"baseline\", \"constrained-baseline\" }, width = 1280, height = 720, framerate = 30/1");
-    gst_caps_append(caps, OWR_MEDIA_RENDERER_GET_CLASS(renderer)->get_caps(renderer));
-#else
-    caps = OWR_MEDIA_RENDERER_GET_CLASS(renderer)->get_caps(renderer);
-#endif
-    src = _owr_media_source_request_source(priv->source, caps);
-    gst_caps_unref(caps);
+    // Get the renderer caps
+    renderer_caps = OWR_MEDIA_RENDERER_GET_CLASS(renderer)->get_caps(renderer);
+    gst_caps_append(renderer_caps, gst_caps_from_string("video/x-h264, profile = { \"baseline\", \"constrained-baseline\" }"));
+
+    src = _owr_media_source_request_source(priv->source, renderer_caps);
+    gst_caps_unref(renderer_caps);
     g_assert(src);
+
     /* The source might be providing compressed output */
     decoder = gst_element_factory_make("singledecodebin", NULL);
     gst_bin_add_many(GST_BIN(priv->pipeline), decoder, src, NULL);

@@ -651,13 +651,6 @@ static GstElement *owr_local_media_source_request_source(OwrMediaSource *media_s
                 LINK_ELEMENTS(capsfilter, source_process);
             } else
                 LINK_ELEMENTS(capsfilter, tee);
-
-            // LINK_ELEMENTS(capsfilter, tee);
-            // if (source_process) {
-            //     LINK_ELEMENTS(source_process, capsfilter);
-            //     LINK_ELEMENTS(source, source_process);
-            // } else
-            //     LINK_ELEMENTS(source, capsfilter);
         } else if (source_process) {
             LINK_ELEMENTS(source_process, tee);
             LINK_ELEMENTS(source, source_process);
