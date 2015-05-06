@@ -163,6 +163,10 @@ static GstElement *owr_gst_media_source_request_source(OwrMediaSource *media_sou
     OwrGstMediaSourcePrivate *priv = OWR_GST_MEDIA_SOURCE(media_source)->priv;
     OwrMediaType media_type = OWR_MEDIA_TYPE_UNKNOWN;
     GstStructure *structure;
+    guint ncaps;
+    guint i;
+    gboolean has_audio_raw = FALSE;
+    gboolean has_video_raw = FALSE;
 
     g_assert(priv->source);
     g_assert(caps);
@@ -174,19 +178,30 @@ static GstElement *owr_gst_media_source_request_source(OwrMediaSource *media_sou
         return NULL;
     }
 
-    structure = gst_caps_get_structure(caps, 0);
-    switch (media_type) {
-    case OWR_MEDIA_TYPE_AUDIO:
-        g_return_val_if_fail(gst_structure_has_name(structure, "audio/x-raw"), NULL);
-        break;
-    case OWR_MEDIA_TYPE_VIDEO:
-        g_return_val_if_fail(gst_structure_has_name(structure, "video/x-raw"), NULL);
-        break;
-    case OWR_MEDIA_TYPE_UNKNOWN:
-    default:
-        g_assert_not_reached();
-        return NULL;
+    ncaps = gst_caps_get_size(caps);
+
+    for (i = 0; i < ncaps; i++)
+    {
+        structure = gst_caps_get_structure(caps, i);
+        g_print("struct: %s\n", gst_structure_to_string(structure));
+        switch (media_type) {
+        case OWR_MEDIA_TYPE_AUDIO:
+            if (gst_structure_has_name(structure, "audio/x-raw"))
+		    has_audio_raw = TRUE;
+            break;
+        case OWR_MEDIA_TYPE_VIDEO:
+            if (gst_structure_has_name(structure, "video/x-raw"))
+		    has_video_raw = TRUE;
+            break;
+        case OWR_MEDIA_TYPE_UNKNOWN:
+        default:
+            g_assert_not_reached();
+            return NULL;
+        }
     }
+    if (!has_audio_raw && !has_video_raw)
+	    return NULL;
+
     g_return_val_if_fail(priv->source, NULL);
 
     return priv->source;
