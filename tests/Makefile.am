@@ -30,7 +30,7 @@ AM_CPPFLAGS += \
 bin_PROGRAMS += \
     test-gst-io
 
-test_gst_io_SOURCES = test_gst_io.c
+test_gst_io_SOURCES = test_gst_io.c test_utils.c
 
 test_gst_io_CFLAGS = \
     -I$(top_srcdir)/gst \

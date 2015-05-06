@@ -35,11 +35,17 @@
 #include "owr_gst_audio_renderer.h"
 #include "owr_gst_video_renderer.h"
 #include "owr_gst_media_source.h"
+#include "test_utils.h"
 
-#define CUSTOM_AUDIO_SINK "pulsesink"
-#define CUSTOM_VIDEO_SINK "xvimagesink"
+#define CUSTOM_AUDIO_SINK "autoaudiosink"
+#define CUSTOM_VIDEO_SINK "autovideosink"
 #define CUSTOM_AUDIO_SOURCE "audiotestsrc wave=10"
 #define CUSTOM_VIDEO_SOURCE "videotestsrc ! capsfilter caps=\"video/x-raw, width=(int)1280, height=(int)720\" ! videoscale"
+
+OwrMediaSource *audio_source;
+OwrMediaSource *video_source;
+OwrMediaRenderer *audio_renderer;
+OwrMediaRenderer *video_renderer;
 
 static OwrMediaRenderer* add_renderer(OwrMediaSource *source, const gchar *bin_description)
 {
@@ -90,11 +96,21 @@ static OwrMediaSource* create_source(OwrMediaType type, const gchar *bin_descrip
     return source;
 }
 
+static gboolean dump_cb(gpointer *user_data)
+{
+    if (video_source)
+        write_dot_file("test_gst_io-video-source", owr_media_source_get_dot_data(video_source), FALSE);
+    if (video_renderer)
+        write_dot_file("test_gst_io-video-renderer", owr_media_renderer_get_dot_data(video_renderer), FALSE);
+    if (audio_source)
+        write_dot_file("test_gst_io-audio-source", owr_media_source_get_dot_data(audio_source), FALSE);
+    if (audio_renderer)
+        write_dot_file("test_gst_io-audio-renderer", owr_media_renderer_get_dot_data(audio_renderer), FALSE);
+    g_print("Dumping pipeline done !\n");
+    return G_SOURCE_REMOVE;
+}
+
 int main() {
-    OwrMediaSource *audio_source;
-    OwrMediaSource *video_source;
-    OwrMediaRenderer *audio_renderer;
-    OwrMediaRenderer *video_renderer;
 
     owr_init(NULL);
 
@@ -105,6 +121,8 @@ int main() {
     video_source = create_source(OWR_MEDIA_TYPE_VIDEO, CUSTOM_VIDEO_SOURCE);
     if (video_source)
         video_renderer = add_renderer(video_source, CUSTOM_VIDEO_SINK);
+
+    g_timeout_add_seconds(10, (GSourceFunc)dump_cb, NULL);
 
     owr_run();
 
