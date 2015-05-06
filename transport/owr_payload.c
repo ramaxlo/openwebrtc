@@ -366,13 +366,13 @@ static gboolean binding_transform_to_kbps(GBinding *binding, const GValue *from_
 GstElement * _owr_payload_create_encoder(OwrPayload *payload)
 {
     GstElement *encoder = NULL, *encodebin;
-    gchar *preset = NULL;
+    //gchar *preset = NULL;
     gchar *element_name = NULL;
     GstElementFactory *factory;
     const gchar *factory_name;
     gint cpu_used;
-    GstEncodingProfile *enc_profile = NULL;
-    gboolean make_preset = FALSE;
+    //GstEncodingProfile *enc_profile = NULL;
+    //gboolean make_preset = FALSE;
 
     g_return_val_if_fail(payload, NULL);
 
@@ -415,7 +415,7 @@ GstElement * _owr_payload_create_encoder(OwrPayload *payload)
             g_object_bind_property(payload, "bitrate", encoder, "bitrate", G_BINDING_SYNC_CREATE);
         }
         g_object_set(payload, "bitrate", evaluate_bitrate_from_payload(payload), NULL);
-        make_preset = TRUE;
+        //make_preset = TRUE;
         break;
 
     case OWR_CODEC_TYPE_VP8:
@@ -444,7 +444,7 @@ GstElement * _owr_payload_create_encoder(OwrPayload *payload)
 
         g_object_bind_property(payload, "bitrate", encoder, "target-bitrate", G_BINDING_SYNC_CREATE);
         g_object_set(payload, "bitrate", evaluate_bitrate_from_payload(payload), NULL);
-        make_preset = TRUE;
+        //make_preset = TRUE;
         break;
     default:
         element_name = g_strdup_printf("encoder_%s_%u", OwrCodecTypeEncoderElementName[payload->priv->codec_type], get_unique_id());
