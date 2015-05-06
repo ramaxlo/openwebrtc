@@ -310,7 +310,7 @@ static void maybe_start_renderer(OwrMediaRenderer *renderer)
     OwrMediaRendererPrivate *priv;
     GstPad *sinkpad, *srcpad;
     GstElement *src;
-    GstElement *decoder;
+    //GstElement *decoder;
     GstCaps *renderer_caps;
     GstPadLinkReturn pad_link_return;
 
@@ -333,10 +333,10 @@ static void maybe_start_renderer(OwrMediaRenderer *renderer)
     g_assert(src);
 
     /* The source might be providing compressed output */
-    decoder = gst_element_factory_make("singledecodebin", NULL);
-    gst_bin_add_many(GST_BIN(priv->pipeline), decoder, src, NULL);
-    gst_element_link(src, decoder);
-    srcpad = gst_element_get_static_pad(decoder, "src");
+    //decoder = gst_element_factory_make("singledecodebin", NULL);
+    gst_bin_add_many(GST_BIN(priv->pipeline), src, NULL);
+    //gst_element_link(src, decoder);
+    srcpad = gst_element_get_static_pad(src, "src");
     priv->src = src;
 
     /* The sink is always inside the bin already */
