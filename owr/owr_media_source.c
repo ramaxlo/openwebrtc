@@ -355,11 +355,9 @@ static GstElement *owr_media_source_request_source_default(OwrMediaSource *media
 
         if (!gst_caps_is_empty(src_caps)) {
             /* We have the caps we want, don't bother with conversion */
-            CREATE_ELEMENT_WITH_ID(queue_pre, "queue", "source-queue", source_id);
-            gst_bin_add_many(GST_BIN(source_bin), queue_pre, capsfilter, queue_post, NULL);
-            LINK_ELEMENTS(queue_pre, capsfilter);
+            gst_bin_add_many(GST_BIN(source_bin), capsfilter, queue_post, NULL);
             LINK_ELEMENTS(capsfilter, queue_post);
-            first_element = queue_pre;
+            first_element = capsfilter;
         } else {
             /* Cross our fingers and hope conversion works */
             CREATE_ELEMENT_WITH_ID(queue_pre, "queue", "source-queue", source_id);

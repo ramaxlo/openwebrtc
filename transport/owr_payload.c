@@ -454,38 +454,36 @@ GstElement * _owr_payload_create_encoder(OwrPayload *payload)
         break;
     }
 
-    return encoder;
+    if (make_preset && GST_IS_PRESET(encoder)) {
+        factory = gst_element_get_factory(encoder);
+        factory_name = gst_plugin_feature_get_name(factory);
 
-//    if (make_preset && GST_IS_PRESET(encoder)) {
-//        factory = gst_element_get_factory(encoder);
-//        factory_name = gst_plugin_feature_get_name(factory);
-//
-//        preset = g_strdup_printf("owr_%s", factory_name);
-//        gst_preset_save_preset(GST_PRESET(encoder), preset);
-//    }
-//
-//    if (OWR_IS_VIDEO_PAYLOAD(payload)) {
-//        enc_profile =
-//            GST_ENCODING_PROFILE(gst_encoding_video_profile_new(_owr_payload_create_encoded_caps(payload),
-//                        preset, NULL, 1));
-//    } else if (OWR_IS_AUDIO_PAYLOAD(payload)) {
-//        enc_profile =
-//            GST_ENCODING_PROFILE(gst_encoding_audio_profile_new(_owr_payload_create_encoded_caps(payload),
-//                        preset, NULL, 1));
-//    } else {
-//        g_warn_if_reached();
-//    }
-//
-//    g_return_val_if_fail(enc_profile, NULL);
-//    g_object_set(encodebin, "profile", enc_profile, NULL);
-//
-//    if (preset)
-//        g_free(preset);
-//
-//    gst_element_set_state(encoder, GST_STATE_NULL);
-//    gst_object_unref(encoder);
-//
-//    return encodebin;
+        preset = g_strdup_printf("owr_%s", factory_name);
+        gst_preset_save_preset(GST_PRESET(encoder), preset);
+    }
+
+    if (OWR_IS_VIDEO_PAYLOAD(payload)) {
+        enc_profile =
+            GST_ENCODING_PROFILE(gst_encoding_video_profile_new(_owr_payload_create_encoded_caps(payload),
+                        preset, NULL, 1));
+    } else if (OWR_IS_AUDIO_PAYLOAD(payload)) {
+        enc_profile =
+            GST_ENCODING_PROFILE(gst_encoding_audio_profile_new(_owr_payload_create_encoded_caps(payload),
+                        preset, NULL, 1));
+    } else {
+        g_warn_if_reached();
+    }
+
+    g_return_val_if_fail(enc_profile, NULL);
+    g_object_set(encodebin, "profile", enc_profile, NULL);
+
+    if (preset)
+        g_free(preset);
+
+    gst_element_set_state(encoder, GST_STATE_NULL);
+    gst_object_unref(encoder);
+
+    return encodebin;
 }
 
 GstElement * _owr_payload_create_decoder(OwrPayload *payload)
