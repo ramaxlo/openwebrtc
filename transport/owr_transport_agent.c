@@ -91,6 +91,10 @@ static guint next_transport_agent_id = 1;
 
 #define OWR_TRANSPORT_AGENT_GET_PRIVATE(obj)    (G_TYPE_INSTANCE_GET_PRIVATE((obj), OWR_TYPE_TRANSPORT_AGENT, OwrTransportAgentPrivate))
 
+#define LINK_ELEMENTS(a, b) \
+    if (!gst_element_link(a, b)) \
+        GST_ERROR("Failed to link " #a " -> " #b);
+
 static void owr_message_origin_interface_init(OwrMessageOriginInterface *interface);
 
 G_DEFINE_TYPE_WITH_CODE(OwrTransportAgent, owr_transport_agent, G_TYPE_OBJECT,
@@ -1760,6 +1764,83 @@ static void on_caps(GstElement *sink, GParamSpec *pspec, OwrSession *session)
         GST_CAT_INFO_OBJECT(_owrsession_debug, session, "Sending media configured with caps: %" GST_PTR_FORMAT, caps);
 }
 
+static void on_video_queue_src_caps(GstElement *src, GParamSpec *pspec, OwrTransportAgent *transport_agent)
+{
+    OWR_UNUSED(pspec);
+
+    GstCaps *caps;
+    g_object_get(src, "caps", &caps, NULL);
+
+    if (GST_IS_CAPS(caps)) {
+        GstBin *transport_bin = GST_BIN(transport_agent->priv->transport_bin);
+        GstPad *src_pad = GST_PAD(src);
+        GstPad *sink_pad = NULL;
+        GstElement *parser, *encode_caps_filter, *encoder;
+        gchar *name;
+
+        guint stream_id;
+        gchar* transport_bin_name = transport_agent->priv->transport_bin_name;
+        if (!transport_bin_name || sscanf(transport_bin_name, "transport_bin_%u", &stream_id) != 1) {
+            g_error("Could not get stream-id");
+            g_free(transport_bin_name);
+            return;
+        }
+
+        name = g_strdup_printf("send-input-video-parser-%u", stream_id);
+        parser = gst_bin_get_by_name(transport_bin, name);
+        g_free(name);
+
+        name = g_strdup_printf("send-input-video-encoder-capsfilter-%u", stream_id);
+        encode_caps_filter = gst_bin_get_by_name(transport_bin, name);
+        g_free(name);
+
+        name = g_strdup_printf("send-input-video-encoder-%u", stream_id);
+        encoder = gst_bin_get_by_name(transport_bin, name);
+        g_free(name);
+
+        OwrCodecType codec = _owr_caps_to_codec_type(caps);
+        if (codec == OWR_CODEC_TYPE_NONE) {
+            if (parser != NULL) {
+                // Queue -> Encoder -> Parser -> CapsFilter
+                LINK_ELEMENTS(encoder, parser);
+                sink_pad = gst_element_get_static_pad(encoder, "sink");
+                GstPadLinkReturn ret = gst_pad_link(src_pad, sink_pad);
+                gst_object_unref (sink_pad);
+                g_warn_if_fail(GST_PAD_LINK_SUCCESSFUL(ret));
+            } else {
+                // Queue -> Encoder -> CapsFilter
+                LINK_ELEMENTS(encoder, encode_caps_filter);
+                sink_pad = gst_element_get_static_pad(encoder, "sink");
+                GstPadLinkReturn ret = gst_pad_link(src_pad, sink_pad);
+                gst_object_unref (sink_pad);
+                g_warn_if_fail(GST_PAD_LINK_SUCCESSFUL(ret));
+            }
+        } else {
+            // The caps is encoded, remove encoder from bin.
+            gst_element_set_state (encoder, GST_STATE_NULL);
+            gst_bin_remove (GST_BIN(GST_ELEMENT_PARENT(encoder)), encoder);
+
+            if (parser != NULL) {
+                // Queue -> Parser -> CapsFilter
+                sink_pad = gst_element_get_static_pad(parser, "sink");
+                GstPadLinkReturn ret = gst_pad_link(src_pad, sink_pad);
+                gst_object_unref (sink_pad);
+                g_warn_if_fail(GST_PAD_LINK_SUCCESSFUL(ret));
+            } else {
+                // Queue -> CapsFilter
+                sink_pad = gst_element_get_static_pad(encode_caps_filter, "sink");
+                GstPadLinkReturn ret = gst_pad_link(src_pad, sink_pad);
+                gst_object_unref (sink_pad);
+                g_warn_if_fail(GST_PAD_LINK_SUCCESSFUL(ret));
+            }
+        }
+
+        gst_object_unref(encoder);
+        gst_object_unref(parser);
+        gst_object_unref(encode_caps_filter);
+    }
+}
+
 static void handle_new_send_payload(OwrTransportAgent *transport_agent, OwrMediaSession *media_session, OwrPayload * payload)
 {
     guint stream_id;
@@ -1834,14 +1915,28 @@ static void handle_new_send_payload(OwrTransportAgent *transport_agent, OwrMedia
         // g_signal_connect_object(payload, "notify::mirror", G_CALLBACK(update_flip_method), flip, 0);
         // update_flip_method(payload, NULL, flip);
 
+        // Setup the input video queue
         name = g_strdup_printf("send-input-video-queue-%u", stream_id);
         queue = gst_element_factory_make("queue", name);
         g_free(name);
         g_object_set(queue, "max-size-buffers", 3, "max-size-bytes", 0,
             "max-size-time", G_GUINT64_CONSTANT(0), NULL);
+        GstPad *queue_src_pad = gst_element_get_static_pad(queue, "src");
+        g_signal_connect(queue_src_pad, "notify::caps", G_CALLBACK(on_video_queue_src_caps), OWR_TRANSPORT_AGENT(transport_agent));
+        gst_object_unref(queue_src_pad);
 
+        // Setup the input video encoder
+        name = g_strdup_printf("send-input-video-encoder-%u", stream_id);
         encoder = _owr_payload_create_encoder(payload);
+        g_object_set(encoder, "name", name, NULL);
+        g_free(name);
+
+        // Setup the input video parser
+        name = g_strdup_printf("send-input-video-parser-%u", stream_id);
         parser = _owr_payload_create_parser(payload);
+        g_object_set(parser, "name", name, NULL);
+        g_free(name);
+
         payloader = _owr_payload_create_payload_packetizer(payload);
         g_warn_if_fail(payloader);
 
@@ -1849,6 +1944,7 @@ static void handle_new_send_payload(OwrTransportAgent *transport_agent, OwrMedia
         g_signal_connect(encoder_sink_pad, "notify::caps", G_CALLBACK(on_caps), OWR_SESSION(media_session));
         gst_object_unref(encoder_sink_pad);
 
+        // Setup the input video encoder capsfilter
         name = g_strdup_printf("send-input-video-encoder-capsfilter-%u", stream_id);
         encoder_capsfilter = gst_element_factory_make("capsfilter", name);
         g_free(name);
@@ -1861,9 +1957,9 @@ static void handle_new_send_payload(OwrTransportAgent *transport_agent, OwrMedia
         gst_bin_add_many(GST_BIN(send_input_bin), queue, encoder, encoder_capsfilter, payloader, NULL);
         if (parser) {
             gst_bin_add(GST_BIN(send_input_bin), parser);
-            link_ok &= gst_element_link_many(queue, encoder, parser, encoder_capsfilter, payloader, NULL);
+            link_ok &= gst_element_link_many(parser, encoder_capsfilter, payloader, NULL);
         } else
-            link_ok &= gst_element_link_many(queue, encoder, encoder_capsfilter, payloader, NULL);
+            link_ok &= gst_element_link_many(encoder_capsfilter, payloader, NULL);
 
         link_ok &= gst_element_link_many(payloader, rtp_capsfilter, NULL);
 
