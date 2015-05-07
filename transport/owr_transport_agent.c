@@ -95,6 +95,22 @@ static guint next_transport_agent_id = 1;
     if (!gst_element_link(a, b)) \
         GST_ERROR("Failed to link " #a " -> " #b);
 
+#define CREATE_ELEMENT(elem, factory, name) \
+    elem = gst_element_factory_make(factory, name); \
+    if (!elem) \
+        GST_ERROR("Could not create " name " from factory " factory); \
+    g_assert(elem);
+
+#define CREATE_ELEMENT_WITH_ID(elem, factory, name, id) \
+{ \
+    gchar *temp_str = g_strdup_printf(name"-%u", id); \
+    elem = gst_element_factory_make(factory, temp_str); \
+    if (!elem) \
+        GST_ERROR("Could not create %s from factory " factory, temp_str); \
+    g_assert(elem); \
+    g_free(temp_str); \
+}
+
 static void owr_message_origin_interface_init(OwrMessageOriginInterface *interface);
 
 G_DEFINE_TYPE_WITH_CODE(OwrTransportAgent, owr_transport_agent, G_TYPE_OBJECT,
@@ -1801,33 +1817,57 @@ static void on_video_queue_src_caps(GstElement *src, GParamSpec *pspec, OwrTrans
         OwrCodecType codec = _owr_caps_to_codec_type(caps);
         if (codec == OWR_CODEC_TYPE_NONE) {
             if (parser != NULL) {
-                // Queue -> Encoder -> Parser -> CapsFilter
+                /* Queue -> VideoConvert -> Encoder -> Parser -> CapsFilter */
+
+                // Need video converter because the input raw might not fit for encoder.
+                GstElement *videoconvert;
+                CREATE_ELEMENT_WITH_ID(videoconvert, "videoconvert", "send-input-video-convert", stream_id);
+                gst_bin_add(GST_BIN(GST_ELEMENT_PARENT(encoder)), videoconvert);
+                gst_element_sync_state_with_parent(videoconvert);
+
+                // Link the pipeline
                 LINK_ELEMENTS(encoder, parser);
-                sink_pad = gst_element_get_static_pad(encoder, "sink");
+                LINK_ELEMENTS(videoconvert, encoder);
+                sink_pad = gst_element_get_static_pad(videoconvert, "sink");
                 GstPadLinkReturn ret = gst_pad_link(src_pad, sink_pad);
                 gst_object_unref (sink_pad);
                 g_warn_if_fail(GST_PAD_LINK_SUCCESSFUL(ret));
             } else {
-                // Queue -> Encoder -> CapsFilter
+                /* Queue -> VideoConvert -> Encoder -> CapsFilter */
+
+                // Need video converter because the input raw might not fit for encoder.
+                GstElement *videoconvert;
+                CREATE_ELEMENT_WITH_ID(videoconvert, "videoconvert", "send-input-video-convert", stream_id);
+                gst_bin_add(GST_BIN(GST_ELEMENT_PARENT(encoder)), videoconvert);
+                gst_element_sync_state_with_parent(videoconvert);
+
+                // Link the pipeline
                 LINK_ELEMENTS(encoder, encode_caps_filter);
-                sink_pad = gst_element_get_static_pad(encoder, "sink");
+                LINK_ELEMENTS(videoconvert, encoder);
+                sink_pad = gst_element_get_static_pad(videoconvert, "sink");
                 GstPadLinkReturn ret = gst_pad_link(src_pad, sink_pad);
                 gst_object_unref (sink_pad);
                 g_warn_if_fail(GST_PAD_LINK_SUCCESSFUL(ret));
             }
         } else {
+            // TODO: The encoded stream caps might not be different with the caps filter. Need transcode ?
+
             // The caps is encoded, remove encoder from bin.
             gst_element_set_state (encoder, GST_STATE_NULL);
             gst_bin_remove (GST_BIN(GST_ELEMENT_PARENT(encoder)), encoder);
 
             if (parser != NULL) {
-                // Queue -> Parser -> CapsFilter
+                /* Queue -> Parser -> CapsFilter */
+
+                // Link the pipeline
                 sink_pad = gst_element_get_static_pad(parser, "sink");
                 GstPadLinkReturn ret = gst_pad_link(src_pad, sink_pad);
                 gst_object_unref (sink_pad);
                 g_warn_if_fail(GST_PAD_LINK_SUCCESSFUL(ret));
             } else {
-                // Queue -> CapsFilter
+                /* Queue -> CapsFilter */
+
+                // Link the pipeline
                 sink_pad = gst_element_get_static_pad(encode_caps_filter, "sink");
                 GstPadLinkReturn ret = gst_pad_link(src_pad, sink_pad);
                 gst_object_unref (sink_pad);
