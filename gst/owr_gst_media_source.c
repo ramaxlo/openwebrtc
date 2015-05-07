@@ -183,7 +183,6 @@ static GstElement *owr_gst_media_source_request_source(OwrMediaSource *media_sou
     for (i = 0; i < ncaps; i++)
     {
         structure = gst_caps_get_structure(caps, i);
-        g_print("struct: %s\n", gst_structure_to_string(structure));
         switch (media_type) {
         case OWR_MEDIA_TYPE_AUDIO:
             if (gst_structure_has_name(structure, "audio/x-raw"))
