@@ -1795,24 +1795,31 @@ static void on_video_queue_src_caps(GstElement *src, GParamSpec *pspec, OwrTrans
         gchar *name;
 
         guint stream_id;
-        gchar* transport_bin_name = transport_agent->priv->transport_bin_name;
-        if (!transport_bin_name || sscanf(transport_bin_name, "transport_bin_%u", &stream_id) != 1) {
+        GstElement *queue = gst_pad_get_parent_element(src_pad);
+        gchar* queue_name = gst_element_get_name(queue);
+        if (!queue_name || sscanf(queue_name, "send-input-video-queue-%u", &stream_id) != 1) {
             g_error("Could not get stream-id");
-            g_free(transport_bin_name);
+            g_free(queue_name);
+            gst_object_unref(queue);
             return;
         }
+        g_free(queue_name);
+        gst_object_unref(queue);
 
         name = g_strdup_printf("send-input-video-parser-%u", stream_id);
         parser = gst_bin_get_by_name(transport_bin, name);
         g_free(name);
+        g_warn_if_fail(parser);
 
         name = g_strdup_printf("send-input-video-encoder-capsfilter-%u", stream_id);
         encode_caps_filter = gst_bin_get_by_name(transport_bin, name);
         g_free(name);
+        g_return_if_fail(encode_caps_filter);
 
         name = g_strdup_printf("send-input-video-encoder-%u", stream_id);
         encoder = gst_bin_get_by_name(transport_bin, name);
         g_free(name);
+        g_return_if_fail(encoder);
 
         OwrCodecType codec = _owr_caps_to_codec_type(caps);
         if (codec == OWR_CODEC_TYPE_NONE) {
