@@ -4,6 +4,8 @@ project(openwebrtc_0_3_0)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
 set(GLIB_INCLUDE_PATH  "/home/david74/cerbero/dist/linux_x86_64/include/glib-2.0")
+set(LIBSOUP_INCLUDE_PATH  "/home/david74/cerbero/dist/linux_x86_64/include/libsoup-2.4")
+set(LIBJSON_INCLUDE_PATH  "/home/david74/cerbero/dist/linux_x86_64/include/json-glib-1.0")
 set(GLIB_CONFIG_INCLUDE_PATH  "/home/david74/cerbero/dist/linux_x86_64/lib/glib-2.0/include")
 set(LIBNICE_CONFIG_INCLUDE_PATH  "/home/david74/cerbero/dist/linux_x86_64/include/nice")
 set(GST_INCLUDE_PATH  "/home/david74/cerbero/dist/linux_x86_64/include/gstreamer-1.0")
@@ -15,7 +17,7 @@ set(OWR_INCLUDE_PATH
 
 include_directories(
     ${GLIB_INCLUDE_PATH} ${GLIB_CONFIG_INCLUDE_PATH} ${GST_INCLUDE_PATH} ${GST_CONFIG_INCLUDE_PATH}
-    ${LIBNICE_CONFIG_INCLUDE_PATH} ${OWR_INCLUDE_PATH}
+    ${LIBNICE_CONFIG_INCLUDE_PATH} ${OWR_INCLUDE_PATH} ${LIBSOUP_INCLUDE_PATH} ${LIBJSON_INCLUDE_PATH}
 )
 
 set(SOURCE_FILES
