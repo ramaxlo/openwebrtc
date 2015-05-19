@@ -1809,7 +1809,6 @@ static void on_video_queue_src_caps(GstElement *src, GParamSpec *pspec, OwrTrans
         name = g_strdup_printf("send-input-video-parser-%u", stream_id);
         parser = gst_bin_get_by_name(transport_bin, name);
         g_free(name);
-        g_warn_if_fail(parser);
 
         name = g_strdup_printf("send-input-video-encoder-capsfilter-%u", stream_id);
         encode_caps_filter = gst_bin_get_by_name(transport_bin, name);
@@ -1882,8 +1881,10 @@ static void on_video_queue_src_caps(GstElement *src, GParamSpec *pspec, OwrTrans
             }
         }
 
+        if (parser) {
+            gst_object_unref(parser);
+        }
         gst_object_unref(encoder);
-        gst_object_unref(parser);
         gst_object_unref(encode_caps_filter);
     }
 }
