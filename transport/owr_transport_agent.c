@@ -1982,7 +1982,8 @@ static void handle_new_send_payload(OwrTransportAgent *transport_agent, OwrMedia
         // Setup the input video parser
         name = g_strdup_printf("send-input-video-parser-%u", stream_id);
         parser = _owr_payload_create_parser(payload);
-        g_object_set(parser, "name", name, NULL);
+        if (parser)
+            g_object_set(parser, "name", name, NULL);
         g_free(name);
 
         payloader = _owr_payload_create_payload_packetizer(payload);
