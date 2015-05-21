@@ -780,18 +780,25 @@ static void handle_new_send_source(OwrTransportAgent *transport_agent,
     src = _owr_media_source_request_source(send_source, payload_caps);
     g_assert(src);
     gst_caps_unref(payload_caps);
-    srcpad = gst_element_get_static_pad(src, "src");
-    g_assert(srcpad);
-    transport_bin = transport_agent->priv->transport_bin;
 
+    // Find the latest unlinked src pad
+    srcpad = _owr_element_find_unlinked_pad(src, GST_PAD_SRC);
+    g_assert(srcpad);
+
+    transport_bin = transport_agent->priv->transport_bin;
     stream_id = get_stream_id(transport_agent, OWR_SESSION(media_session));
     g_return_if_fail(stream_id);
 
-    gst_bin_add(GST_BIN(transport_agent->priv->pipeline), src);
+    // Only add the src bin if it is not in the pipeline
+    if (FALSE == _owr_is_element_in_bin(GST_BIN(transport_agent->priv->pipeline), src)) {
+        gst_bin_add(GST_BIN(transport_agent->priv->pipeline), src);
+    }
+
     if (!link_source_to_transport_bin(srcpad, transport_agent->priv->pipeline, transport_bin, media_type, codec_type, stream_id)) {
         gchar *name = "";
         g_object_get(send_source, "name", &name, NULL);
         GST_ERROR("Failed to link \"%s\" with transport bin", name);
+        g_free(name);
     }
     gst_object_unref(srcpad);
 
