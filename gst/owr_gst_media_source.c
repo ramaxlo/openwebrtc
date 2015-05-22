@@ -58,8 +58,8 @@ struct _OwrGstMediaSourcePrivate {
 
 static void owr_gst_media_source_dispose(GObject *object)
 {
-    OwrGstMediaSource *renderer = OWR_GST_MEDIA_SOURCE(object);
-    OwrGstMediaSourcePrivate *priv = renderer->priv;
+    OwrGstMediaSource *source = OWR_GST_MEDIA_SOURCE(object);
+    OwrGstMediaSourcePrivate *priv = source->priv;
 
     if (priv->source) {
         gst_object_unref(priv->source);
