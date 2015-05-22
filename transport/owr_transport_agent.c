@@ -869,16 +869,19 @@ static void remove_existing_send_source_and_payload(OwrTransportAgent *transport
     g_free(pad_name);
 
     bin_src_pad = gst_pad_get_peer(sinkpad);
-    g_assert(bin_src_pad);
-    source_bin = GST_ELEMENT(gst_pad_get_parent(bin_src_pad));
-    g_assert(source_bin);
+    if (bin_src_pad) {
+        source_bin = GST_ELEMENT(gst_pad_get_parent(bin_src_pad));
+        g_assert(source_bin);
 
-    /* Shutting down will flush immediately */
-    _owr_media_source_release_source(media_source, source_bin);
-    gst_element_set_state(source_bin, GST_STATE_NULL);
-    gst_bin_remove(GST_BIN(transport_agent->priv->pipeline), source_bin);
-    gst_object_unref(bin_src_pad);
-    gst_object_unref(source_bin);
+        /* Shutting down will flush immediately */
+        _owr_media_source_release_source(media_source, source_bin);
+        gst_element_set_state(source_bin, GST_STATE_NULL);
+        gst_bin_remove(GST_BIN(transport_agent->priv->pipeline), source_bin);
+        gst_object_unref(bin_src_pad);
+        gst_object_unref(source_bin);
+    } else {
+        g_assert(bin_src_pad);
+    }
 
     /* Now the payload bin */
     bin_name = g_strdup_printf("send-input-bin-%u", stream_id);
