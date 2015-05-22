@@ -721,7 +721,7 @@ static void update_helper_servers(OwrTransportAgent *transport_agent, guint stre
 }
 
 static gboolean link_source_to_transport_bin(GstPad *srcpad, GstElement *pipeline, GstElement *transport_bin,
-    OwrMediaType media_type, OwrCodecType codec_type, guint stream_id)
+    OwrMediaType media_type, guint stream_id)
 {
     GstPad *sinkpad;
     gchar name[OWR_OBJECT_NAME_LENGTH_MAX] = { 0, };
@@ -731,7 +731,7 @@ static gboolean link_source_to_transport_bin(GstPad *srcpad, GstElement *pipelin
         return FALSE;
 
     if (media_type == OWR_MEDIA_TYPE_VIDEO)
-        g_snprintf(name, OWR_OBJECT_NAME_LENGTH_MAX, "video_sink_%u_%u", codec_type, stream_id);
+        g_snprintf(name, OWR_OBJECT_NAME_LENGTH_MAX, "video_sink_%u_%u", OWR_CODEC_TYPE_NONE, stream_id);
     else if (media_type == OWR_MEDIA_TYPE_AUDIO)
         g_snprintf(name, OWR_OBJECT_NAME_LENGTH_MAX, "audio_raw_sink_%u", stream_id);
     sinkpad = gst_element_get_static_pad(transport_bin, name);
@@ -751,7 +751,6 @@ static void handle_new_send_source(OwrTransportAgent *transport_agent,
 {
     GstElement *transport_bin, *src;
     GstCaps *payload_caps;
-    OwrCodecType codec_type = OWR_CODEC_TYPE_NONE;
     OwrMediaType media_type = OWR_MEDIA_TYPE_UNKNOWN;
     guint stream_id = 0;
     GstPad *srcpad;
@@ -794,7 +793,7 @@ static void handle_new_send_source(OwrTransportAgent *transport_agent,
         gst_bin_add(GST_BIN(transport_agent->priv->pipeline), src);
     }
 
-    if (!link_source_to_transport_bin(srcpad, transport_agent->priv->pipeline, transport_bin, media_type, codec_type, stream_id)) {
+    if (!link_source_to_transport_bin(srcpad, transport_agent->priv->pipeline, transport_bin, media_type, stream_id)) {
         gchar *name = "";
         g_object_get(send_source, "name", &name, NULL);
         GST_ERROR("Failed to link \"%s\" with transport bin", name);
