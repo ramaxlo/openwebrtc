@@ -29,9 +29,6 @@
 #endif
 #include "owr_gst_local_media_source.h"
 
-GST_DEBUG_CATEGORY_EXTERN(_owrgstlocalmediasource_debug);
-#define GST_CAT_DEFAULT _owrgstlocalmediasource_debug
-
 static void owr_gst_local_media_source_class_init  (OwrGstLocalMediaSourceClass *klass);
 static void owr_gst_local_media_source_init        (OwrGstLocalMediaSource *obj);
 static void owr_gst_local_media_source_dispose     (GObject *object);

@@ -20,6 +20,7 @@ lib_LTLIBRARIES = libopenwebrtc_gst.la
 libopenwebrtc_gst_la_SOURCES = \
     owr_gst_audio_renderer.c \
     owr_gst_media_source.c \
+    owr_gst_local_media_source.c \
     owr_gst_video_renderer.c
 
 libopenwebrtc_gst_la_LIBADD = \
@@ -34,6 +35,7 @@ includedir = $(prefix)/include/owr
 include_HEADERS = \
     owr_gst_audio_renderer.h \
     owr_gst_media_source.h \
+    owr_gst_local_media_source.h \
     owr_gst_video_renderer.h
 
 pkgconfigdir = $(libdir)/pkgconfig
