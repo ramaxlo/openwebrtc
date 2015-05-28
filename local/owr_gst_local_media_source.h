@@ -46,14 +46,14 @@ typedef struct _OwrGstLocalMediaSourceClass   OwrGstLocalMediaSourceClass;
 typedef struct _OwrGstLocalMediaSourcePrivate OwrGstLocalMediaSourcePrivate;
 
 struct _OwrGstLocalMediaSource {
-	 OwrLocalMediaSource parent_instance;
+    OwrLocalMediaSource parent_instance;
 
-	/*< private >*/
-	OwrGstLocalMediaSourcePrivate *priv;
+    /*< private >*/
+    OwrGstLocalMediaSourcePrivate *priv;
 };
 
 struct _OwrGstLocalMediaSourceClass {
-	OwrLocalMediaSourceClass parent_class;
+    OwrLocalMediaSourceClass parent_class;
 };
 
 GType owr_gst_local_media_source_get_type(void) G_GNUC_CONST;
