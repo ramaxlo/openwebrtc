@@ -156,8 +156,7 @@ static GstElement *owr_gst_local_media_source_request_source_element(OwrLocalMed
     return priv->source;
 }
 
-OwrGstLocalMediaSource*
-owr_gst_local_media_source_new(OwrMediaType media_type, OwrSourceType source_type, GstElement *source)
+OwrGstLocalMediaSource* owr_gst_local_media_source_new(OwrMediaType media_type, OwrSourceType source_type, GstElement *source)
 {
     return g_object_new(OWR_TYPE_GST_LOCAL_MEDIA_SOURCE,
                         "media-type", media_type,
