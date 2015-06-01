@@ -365,19 +365,13 @@ static gboolean binding_transform_to_kbps(GBinding *binding, const GValue *from_
 
 GstElement * _owr_payload_create_encoder(OwrPayload *payload)
 {
-    GstElement *encoder = NULL, *encodebin;
-    //gchar *preset = NULL;
+    GstElement *encoder = NULL;
     gchar *element_name = NULL;
     GstElementFactory *factory;
     const gchar *factory_name;
     gint cpu_used;
-    //GstEncodingProfile *enc_profile = NULL;
-    //gboolean make_preset = FALSE;
 
     g_return_val_if_fail(payload, NULL);
-
-    encodebin = gst_element_factory_make("encodebin", "encoder");
-    g_return_val_if_fail(encodebin, NULL);
 
     switch (payload->priv->codec_type) {
     case OWR_CODEC_TYPE_H264:
@@ -466,36 +460,7 @@ GstElement * _owr_payload_create_encoder(OwrPayload *payload)
         break;
     }
 
-    if (make_preset && GST_IS_PRESET(encoder)) {
-        factory = gst_element_get_factory(encoder);
-        factory_name = gst_plugin_feature_get_name(factory);
-
-        preset = g_strdup_printf("owr_%s", factory_name);
-        gst_preset_save_preset(GST_PRESET(encoder), preset);
-    }
-
-    if (OWR_IS_VIDEO_PAYLOAD(payload)) {
-        enc_profile =
-            GST_ENCODING_PROFILE(gst_encoding_video_profile_new(_owr_payload_create_encoded_caps(payload),
-                        preset, NULL, 1));
-    } else if (OWR_IS_AUDIO_PAYLOAD(payload)) {
-        enc_profile =
-            GST_ENCODING_PROFILE(gst_encoding_audio_profile_new(_owr_payload_create_encoded_caps(payload),
-                        preset, NULL, 1));
-    } else {
-        g_warn_if_reached();
-    }
-
-    g_return_val_if_fail(enc_profile, NULL);
-    g_object_set(encodebin, "profile", enc_profile, NULL);
-
-    if (preset)
-        g_free(preset);
-
-    gst_element_set_state(encoder, GST_STATE_NULL);
-    gst_object_unref(encoder);
-
-    return encodebin;
+    return encoder;
 }
 
 GstElement * _owr_payload_create_decoder(OwrPayload *payload)
