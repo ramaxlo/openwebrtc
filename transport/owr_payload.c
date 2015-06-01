@@ -366,13 +366,13 @@ static gboolean binding_transform_to_kbps(GBinding *binding, const GValue *from_
 GstElement * _owr_payload_create_encoder(OwrPayload *payload)
 {
     GstElement *encoder = NULL, *encodebin;
-    gchar *preset = NULL;
+    //gchar *preset = NULL;
     gchar *element_name = NULL;
     GstElementFactory *factory;
     const gchar *factory_name;
     gint cpu_used;
-    GstEncodingProfile *enc_profile = NULL;
-    gboolean make_preset = FALSE;
+    //GstEncodingProfile *enc_profile = NULL;
+    //gboolean make_preset = FALSE;
 
     g_return_val_if_fail(payload, NULL);
 
@@ -410,41 +410,53 @@ GstElement * _owr_payload_create_encoder(OwrPayload *payload)
 #endif
                 "max-keyframe-interval", G_MAXINT,
                 NULL);
+        } else if (!strcmp(factory_name, "omxh264enc")) {
+            g_object_set(encoder, "control-rate", 2, NULL);
+            g_object_bind_property(payload, "bitrate", encoder, "target-bitrate", G_BINDING_SYNC_CREATE);
         } else {
             /* Assume bits/s instead of kbit/s */
             g_object_bind_property(payload, "bitrate", encoder, "bitrate", G_BINDING_SYNC_CREATE);
         }
         g_object_set(payload, "bitrate", evaluate_bitrate_from_payload(payload), NULL);
-        make_preset = TRUE;
+        //make_preset = TRUE;
         break;
 
     case OWR_CODEC_TYPE_VP8:
         encoder = try_codecs(vp8_encoders, "encoder");
         g_return_val_if_fail(encoder, NULL);
 
+        factory = gst_element_get_factory(encoder);
+        factory_name = gst_plugin_feature_get_name(factory);
 #if (defined(__APPLE__) && TARGET_OS_IPHONE && !TARGET_IPHONE_SIMULATOR) || defined(__ANDROID__)
         cpu_used = -12; /* Mobile */
 #else
         cpu_used = -6; /* Desktop */
 #endif
-        /* values are inspired by webrtc.org values in vp8_impl.cc */
-        g_object_set(encoder,
-            "end-usage", 1, /* VPX_CBR */
-            "deadline", G_GINT64_CONSTANT(1), /* VPX_DL_REALTIME */
-            "cpu-used", cpu_used,
-            "min-quantizer", 2,
-            "buffer-initial-size", 500,
-            "buffer-optimal-size", 600,
-            "buffer-size", 1000,
-            "lag-in-frames", 0,
-            "timebase", 1, 90000,
-            "error-resilient", 1,
-            "keyframe-mode", 0, /* VPX_KF_DISABLED */
-            NULL);
+        if (!strcmp(factory_name, "omxvp8enc"))
+        {
+            g_object_set(encoder, "control-rate", 2, NULL);
+        }
+        else // vp8enc
+        {
+            /* values are inspired by webrtc.org values in vp8_impl.cc */
+            g_object_set(encoder,
+                "end-usage", 1, /* VPX_CBR */
+                "deadline", G_GINT64_CONSTANT(1), /* VPX_DL_REALTIME */
+                "cpu-used", cpu_used,
+                "min-quantizer", 2,
+                "buffer-initial-size", 500,
+                "buffer-optimal-size", 600,
+                "buffer-size", 1000,
+                "lag-in-frames", 0,
+                "timebase", 1, 90000,
+                "error-resilient", 1,
+                "keyframe-mode", 0, /* VPX_KF_DISABLED */
+                NULL);
+        }
 
         g_object_bind_property(payload, "bitrate", encoder, "target-bitrate", G_BINDING_SYNC_CREATE);
         g_object_set(payload, "bitrate", evaluate_bitrate_from_payload(payload), NULL);
-        make_preset = TRUE;
+        //make_preset = TRUE;
         break;
     default:
         element_name = g_strdup_printf("encoder_%s_%u", OwrCodecTypeEncoderElementName[payload->priv->codec_type], get_unique_id());

@@ -62,6 +62,9 @@ int _owr_rotation_and_mirror_to_video_flip_method(guint rotation, gboolean mirro
 GHashTable *_owr_value_table_new();
 GValue *_owr_value_table_add(GHashTable *table, const gchar *key, GType type);
 
+gboolean _owr_is_element_in_bin(GstBin *bin, GstElement *element);
+GstPad *_owr_element_find_unlinked_pad(GstElement * element, GstPadDirection direction);
+
 G_END_DECLS
 
 #endif /* __GTK_DOC_IGNORE__ */

@@ -249,3 +249,69 @@ GValue *_owr_value_table_add(GHashTable *table, const gchar *key, GType type)
     g_hash_table_insert(table, g_strdup(key), value);
     return value;
 }
+
+gboolean _owr_is_element_in_bin(GstBin *bin, GstElement *element)
+{
+    gboolean ret = FALSE;
+
+    gchar *src_name = gst_element_get_name(element);
+    GstElement *bin_src = gst_bin_get_by_name(bin, src_name);
+    if (bin_src) {
+        gst_object_unref(bin_src);
+        ret = TRUE;
+    }
+    g_free(src_name);
+
+    return ret;
+}
+
+GstPad *_owr_element_find_unlinked_pad(GstElement * element, GstPadDirection direction)
+{
+    GstIterator *iter;
+    GstPad *unlinked_pad = NULL;
+    gboolean done;
+    GValue data = { 0, };
+
+    switch (direction) {
+        case GST_PAD_SRC:
+            iter = gst_element_iterate_src_pads (element);
+            break;
+        case GST_PAD_SINK:
+            iter = gst_element_iterate_sink_pads (element);
+            break;
+        default:
+            g_return_val_if_reached (NULL);
+    }
+
+    done = FALSE;
+    while (!done) {
+        switch (gst_iterator_next (iter, &data)) {
+            case GST_ITERATOR_OK:{
+                GstPad *peer;
+                GstPad *pad = g_value_get_object (&data);
+                peer = gst_pad_get_peer (pad);
+                if (peer == NULL) {
+                    unlinked_pad = gst_object_ref (pad);
+                    done = TRUE;
+                } else {
+                    gst_object_unref (peer);
+                }
+                g_value_reset (&data);
+                break;
+            }
+            case GST_ITERATOR_DONE:
+                done = TRUE;
+                break;
+            case GST_ITERATOR_RESYNC:
+                gst_iterator_resync (iter);
+                break;
+            case GST_ITERATOR_ERROR:
+                g_return_val_if_reached (NULL);
+                break;
+        }
+    }
+    g_value_unset (&data);
+    gst_iterator_free (iter);
+
+    return unlinked_pad;
+}
