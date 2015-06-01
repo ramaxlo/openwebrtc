@@ -75,9 +75,6 @@ GST_DEBUG_CATEGORY_EXTERN(_owrtransportagent_debug);
 GST_DEBUG_CATEGORY_EXTERN(_owrsession_debug);
 #define GST_CAT_DEFAULT _owrtransportagent_debug
 
-/* FIXME - re-enable RTX when issues are fixed in GStreamer */
-#undef RTX_ENABLED
-
 #define DEFAULT_ICE_CONTROLLING_MODE TRUE
 
 enum {
@@ -1061,8 +1058,11 @@ static GstElement *add_nice_element(OwrTransportAgent *transport_agent, guint st
         "component", is_rtcp
         ? NICE_COMPONENT_TYPE_RTCP : NICE_COMPONENT_TYPE_RTP, NULL);
 
-    if (is_sink)
-        g_object_set(nice_element, "sync", FALSE, "async", FALSE, "enable-last-sample", FALSE, NULL);
+    if (is_sink) {
+        g_object_set(nice_element, "enable-last-sample", FALSE, "async", FALSE, NULL);
+        if (is_rtcp)
+            g_object_set(nice_element, "sync", FALSE, NULL);
+    }
 
     added_ok = gst_bin_add(GST_BIN(bin), nice_element);
     g_warn_if_fail(added_ok);
@@ -1383,7 +1383,7 @@ static void prepare_transport_bin_send_elements(OwrTransportAgent *transport_age
 static void prepare_transport_bin_receive_elements(OwrTransportAgent *transport_agent,
     guint stream_id, gboolean rtcp_mux)
 {
-    GstElement *nice_element, *dtls_srtp_bin;
+    GstElement *nice_element, *dtls_srtp_bin, *funnel;
     GstPad *rtp_src_pad, *rtcp_src_pad;
     gchar *rtpbin_pad_name;
     gboolean linked_ok, synced_ok;
@@ -1430,6 +1430,7 @@ static void prepare_transport_bin_receive_elements(OwrTransportAgent *transport_
 #endif
     g_warn_if_fail(linked_ok);
     g_free(rtpbin_pad_name);
+
     synced_ok = gst_element_sync_state_with_parent(dtls_srtp_bin);
     g_warn_if_fail(synced_ok);
     linked_ok = gst_element_link(nice_element, dtls_srtp_bin);
@@ -1438,10 +1439,19 @@ static void prepare_transport_bin_receive_elements(OwrTransportAgent *transport_
     g_warn_if_fail(synced_ok);
 
     if (!rtcp_mux) {
+        funnel = gst_element_factory_make("funnel", NULL);
+        gst_bin_add(GST_BIN(receive_input_bin), funnel);
+
+        linked_ok = gst_element_link_pads(dtls_srtp_bin, "rtcp_src", funnel, "sink_0");
+        g_warn_if_fail(linked_ok);
+
         nice_element = add_nice_element(transport_agent, stream_id, FALSE, TRUE, receive_input_bin);
         dtls_srtp_bin = add_dtls_srtp_bin(transport_agent, stream_id, FALSE, TRUE, receive_input_bin);
 
-        rtcp_src_pad = gst_element_get_static_pad(dtls_srtp_bin, "rtp_src");
+        linked_ok = gst_element_link_pads(dtls_srtp_bin, "rtcp_src", funnel, "sink_1");
+        g_warn_if_fail(linked_ok);
+
+        rtcp_src_pad = gst_element_get_static_pad(funnel, "src");
         ghost_pad_and_add_to_bin(rtcp_src_pad, receive_input_bin, "rtcp_src");
         gst_object_unref(rtcp_src_pad);
 
@@ -1450,12 +1460,23 @@ static void prepare_transport_bin_receive_elements(OwrTransportAgent *transport_
             transport_agent->priv->rtpbin, rtpbin_pad_name);
         g_warn_if_fail(linked_ok);
         g_free(rtpbin_pad_name);
+        synced_ok = gst_element_sync_state_with_parent(funnel);
+        g_warn_if_fail(synced_ok);
         synced_ok = gst_element_sync_state_with_parent(dtls_srtp_bin);
         g_warn_if_fail(synced_ok);
         linked_ok = gst_element_link(nice_element, dtls_srtp_bin);
         g_warn_if_fail(linked_ok);
         synced_ok = gst_element_sync_state_with_parent(nice_element);
         g_warn_if_fail(synced_ok);
+    } else {
+        rtcp_src_pad = gst_element_get_static_pad(dtls_srtp_bin, "rtcp_src");
+        ghost_pad_and_add_to_bin(rtcp_src_pad, receive_input_bin, "rtcp_src");
+        gst_object_unref(rtcp_src_pad);
+        rtpbin_pad_name = g_strdup_printf("recv_rtcp_sink_%u", stream_id);
+        linked_ok = gst_element_link_pads(receive_input_bin, "rtcp_src",
+            transport_agent->priv->rtpbin, rtpbin_pad_name);
+        g_warn_if_fail(linked_ok);
+        g_free(rtpbin_pad_name);
     }
 }
 
@@ -2398,7 +2419,6 @@ static GstCaps * on_rtpbin_request_pt_map(GstElement *rtpbin, guint session_id, 
     return caps;
 }
 
-#ifdef RTX_ENABLED
 static GstElement * create_aux_bin(gchar *prefix, GstElement *rtx, guint session_id)
 {
     GstElement *bin;
@@ -2429,11 +2449,9 @@ static GstElement * create_aux_bin(gchar *prefix, GstElement *rtx, guint session
 
     return bin;
 }
-#endif
 
 static GstElement * on_rtpbin_request_aux_sender(G_GNUC_UNUSED GstElement *rtpbin, guint session_id, OwrTransportAgent *transport_agent)
 {
-#ifdef RTX_ENABLED
     OwrMediaSession *media_session;
     OwrPayload *payload;
     GstElement *rtxsend;
@@ -2475,17 +2493,11 @@ static GstElement * on_rtpbin_request_aux_sender(G_GNUC_UNUSED GstElement *rtpbi
     return create_aux_bin("rtprtxsend", rtxsend, session_id);
 
 no_retransmission:
-#else
-    OWR_UNUSED(rtpbin);
-    OWR_UNUSED(session_id);
-    OWR_UNUSED(transport_agent);
-#endif
     return NULL;
 }
 
 static GstElement * on_rtpbin_request_aux_receiver(G_GNUC_UNUSED GstElement *rtpbin, G_GNUC_UNUSED guint session_id, OwrTransportAgent *transport_agent)
 {
-#ifdef RTX_ENABLED
     OwrMediaSession *media_session;
     GstElement *rtxrecv;
     GstStructure *pt_map;
@@ -2509,11 +2521,6 @@ static GstElement * on_rtpbin_request_aux_receiver(G_GNUC_UNUSED GstElement *rtp
     return create_aux_bin("rtprtxrecv", rtxrecv, session_id);
 
 no_retransmission:
-#else
-    OWR_UNUSED(rtpbin);
-    OWR_UNUSED(session_id);
-    OWR_UNUSED(transport_agent);
-#endif
     return NULL;
 }
 
@@ -2678,7 +2685,7 @@ static void on_receiving_rtcp(GObject *session, GstBuffer *buffer,
             if (packet_type == GST_RTCP_TYPE_PSFB || packet_type == GST_RTCP_TYPE_RTPFB) {
                 print_rtcp_feedback_type(session, session_id, gst_rtcp_packet_fb_get_type(&rtcp_packet),
                     gst_rtcp_packet_fb_get_media_ssrc(&rtcp_packet), packet_type,
-                    gst_rtcp_packet_fb_get_fci(&rtcp_packet), FALSE);
+                    gst_rtcp_packet_fb_get_fci(&rtcp_packet), TRUE);
                 break;
             }
         }
@@ -2759,10 +2766,8 @@ static void on_new_jitterbuffer(G_GNUC_UNUSED GstElement *rtpbin, GstElement *ji
     media_session = OWR_MEDIA_SESSION(get_session(transport_agent, session_id));
     g_return_if_fail(OWR_IS_MEDIA_SESSION(media_session));
 
-#ifdef RTX_ENABLED
     if (_owr_media_session_want_receive_rtx(media_session))
         g_object_set(jitterbuffer, "do-retransmission", TRUE, NULL);
-#endif
 
     g_object_bind_property(media_session, "jitter-buffer-latency", jitterbuffer,
         "latency", G_BINDING_SYNC_CREATE);
