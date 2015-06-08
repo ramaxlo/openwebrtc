@@ -13,7 +13,7 @@ AM_CPPFLAGS = \
 AM_CFLAGS = \
     -Wall \
     -Wextra \
-    -Werror \
+#    -Werror \    -- cuases compiling failure under OSX with clang
     $(DEBUG_CFLAGS)
 
 lib_LTLIBRARIES = libopenwebrtc.la
