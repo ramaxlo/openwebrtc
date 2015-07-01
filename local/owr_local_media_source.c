@@ -358,10 +358,6 @@ fix_video_caps_framerate(GstCapsFeatures *f, GstStructure *s, gpointer user_data
 
     gst_caps_append_structure(ret, gst_structure_copy(s));
 
-    /* Don't mess with non-raw structures */
-    if (!gst_structure_has_name(s, "video/x-raw"))
-        goto done;
-
     /* If possible try to limit the framerate at the source already */
     if (gst_structure_get_fraction(s, "framerate", &fps_n, &fps_d)) {
         GstStructure *tmp = gst_structure_copy(s);
@@ -369,7 +365,6 @@ fix_video_caps_framerate(GstCapsFeatures *f, GstStructure *s, gpointer user_data
         gst_caps_append_structure(ret, tmp);
     }
 
-done:
     return TRUE;
 }
 
