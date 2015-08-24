@@ -1843,12 +1843,19 @@ static void on_video_queue_src_caps(GstElement *src, GParamSpec *pspec, OwrTrans
         name = g_strdup_printf("send-input-video-encoder-capsfilter-%u", stream_id);
         encode_caps_filter = gst_bin_get_by_name(transport_bin, name);
         g_free(name);
-        g_return_if_fail(encode_caps_filter);
+        if (!encode_caps_filter) {
+            if (parser != NULL) gst_object_unref(parser);
+            return;
+        }
 
         name = g_strdup_printf("send-input-video-encoder-%u", stream_id);
         encoder = gst_bin_get_by_name(transport_bin, name);
         g_free(name);
-        g_return_if_fail(encoder);
+        if (!encoder) {
+            if (parser != NULL) gst_object_unref(parser);
+            if (encode_caps_filter != NULL) gst_object_unref(encode_caps_filter);
+            return;
+        }
 
         OwrCodecType codec = _owr_caps_to_codec_type(caps);
         if (codec == OWR_CODEC_TYPE_NONE) {
@@ -1911,11 +1918,9 @@ static void on_video_queue_src_caps(GstElement *src, GParamSpec *pspec, OwrTrans
             }
         }
 
-        if (parser) {
-            gst_object_unref(parser);
-        }
-        gst_object_unref(encoder);
-        gst_object_unref(encode_caps_filter);
+        if (parser) gst_object_unref(parser);
+        if (encoder) gst_object_unref(encoder);
+        if (encode_caps_filter) gst_object_unref(encode_caps_filter);
     }
 }
 
