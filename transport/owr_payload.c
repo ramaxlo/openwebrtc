@@ -666,6 +666,36 @@ static void set_video_params(GstCaps *caps, OwrPayload *payload)
     gst_caps_set_simple(caps, "framerate", GST_TYPE_FRACTION, fps_n, fps_d, NULL);
 }
 
+static gboolean set_video_params_ex(GstCaps *caps, OwrPayload *payload)
+{
+    guint width_ex = 0, height_ex = 0;
+    gdouble framerate_ex = 0.0;
+    gint fps_n = 0, fps_d = 1;
+
+    if (OWR_IS_VIDEO_PAYLOAD(payload)) {
+        g_object_get(OWR_VIDEO_PAYLOAD(payload),
+                     "width-ex", &width_ex,
+                     "height-ex", &height_ex,
+                     "framerate-ex", &framerate_ex,
+                     NULL);
+    }
+
+    width_ex     = width_ex  > 0 ? width_ex  : LIMITED_WIDTH;
+    height_ex    = height_ex > 0 ? height_ex : LIMITED_HEIGHT;
+    framerate_ex = framerate_ex > 0.0 ? framerate_ex : LIMITED_FRAMERATE;
+    if (width_ex == LIMITED_WIDTH && height_ex == LIMITED_HEIGHT && framerate_ex == LIMITED_FRAMERATE) {
+        // If all params are default value, return false means app does not set these EX params.
+        return FALSE;
+    }
+
+    gst_caps_set_simple(caps, "width", G_TYPE_INT,  width_ex, NULL);
+    gst_caps_set_simple(caps, "height", G_TYPE_INT, height_ex, NULL);
+    gst_util_double_to_fraction(framerate_ex, &fps_n, &fps_d);
+    gst_caps_set_simple(caps, "framerate", GST_TYPE_FRACTION, fps_n, fps_d, NULL);
+
+    return TRUE;
+}
+
 GstCaps * _owr_payload_create_source_caps(OwrPayload *payload)
 {
     OwrPayloadPrivate *priv;
@@ -700,6 +730,16 @@ GstCaps * _owr_payload_create_source_caps(OwrPayload *payload)
         if (tmp) {
             set_video_params(tmp, payload);
             gst_caps_append(caps, tmp);
+        }
+
+        // Append the EX params
+        tmp = _owr_payload_create_encoded_caps(payload);
+        if (tmp) {
+            if (set_video_params_ex(tmp, payload)) {
+                gst_caps_append(caps, tmp);
+            } else {
+                gst_caps_unref(tmp);
+            }
         }
 
         // For raw video source caps

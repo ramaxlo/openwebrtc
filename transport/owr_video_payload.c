@@ -61,6 +61,9 @@ struct _OwrVideoPayloadPrivate {
     gdouble framerate;
     gint rotation;
     gboolean mirror;
+    guint width_ex;
+    guint height_ex;
+    gdouble framerate_ex;
 };
 
 
@@ -74,6 +77,9 @@ enum {
     PROP_FRAMERATE,
     PROP_ROTATION,
     PROP_MIRROR,
+    PROP_WIDTH_EX,
+    PROP_HEIGHT_EX,
+    PROP_FRAMERATE_EX,
 
     N_PROPERTIES,
 
@@ -122,6 +128,18 @@ static void owr_video_payload_set_property(GObject *object, guint property_id, c
         priv->mirror = g_value_get_boolean(value);
         break;
 
+    case PROP_WIDTH_EX:
+        priv->width_ex = g_value_get_uint(value);
+        break;
+
+    case PROP_HEIGHT_EX:
+        priv->height_ex = g_value_get_uint(value);
+        break;
+
+    case PROP_FRAMERATE_EX:
+        priv->framerate_ex = g_value_get_double(value);
+        break;
+
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, property_id, pspec);
         break;
@@ -165,6 +183,18 @@ static void owr_video_payload_get_property(GObject *object, guint property_id, G
 
     case PROP_MIRROR:
         g_value_set_boolean(value, priv->mirror);
+        break;
+
+    case PROP_WIDTH_EX:
+        g_value_set_uint(value, priv->width_ex);
+        break;
+
+    case PROP_HEIGHT_EX:
+        g_value_set_uint(value, priv->height_ex);
+        break;
+
+    case PROP_FRAMERATE_EX:
+        g_value_set_double(value, priv->framerate_ex);
         break;
 
     case PROP_MEDIA_TYPE:
@@ -224,6 +254,21 @@ static void owr_video_payload_class_init(OwrVideoPayloadClass *klass)
         "(NOTE: currently only works for send payloads)", DEFAULT_MIRROR,
         G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
+    obj_properties[PROP_WIDTH_EX] = g_param_spec_uint("width-ex", "width-ex",
+        "Extend video width in pixels",
+        0, G_MAXUINT, DEFAULT_WIDTH,
+        G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
+
+    obj_properties[PROP_HEIGHT_EX] = g_param_spec_uint("height-ex", "height-ex",
+        "Extend video height in pixels",
+        0, G_MAXUINT, DEFAULT_HEIGHT,
+        G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
+
+    obj_properties[PROP_FRAMERATE_EX] = g_param_spec_double("framerate-ex", "framerate-ex",
+        "Extend video frames per second",
+        0.0, G_MAXDOUBLE, DEFAULT_FRAMERATE,
+        G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
+
     g_object_class_install_properties(gobject_class, N_PROPERTIES, obj_properties);
 }
 
@@ -237,6 +282,9 @@ static void owr_video_payload_init(OwrVideoPayload *video_payload)
     video_payload->priv->framerate = DEFAULT_FRAMERATE;
     video_payload->priv->rotation = DEFAULT_ROTATION;
     video_payload->priv->mirror = DEFAULT_MIRROR;
+    video_payload->priv->width_ex = DEFAULT_WIDTH;
+    video_payload->priv->height_ex = DEFAULT_HEIGHT;
+    video_payload->priv->framerate_ex = DEFAULT_FRAMERATE;
 }
 
 OwrPayload * owr_video_payload_new(OwrCodecType codec_type, guint payload_type, guint clock_rate,
